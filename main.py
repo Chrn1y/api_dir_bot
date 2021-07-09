@@ -7,28 +7,29 @@ class Bot:
     def __init__(self, token):
         self.token = token
 
-    def search(self, text):
-        pass
-
-    def title(self, text):
+    @staticmethod
+    def search(text, type):
         if len(text.split()) <= 1:
-            return 1
-        r = requests.get("https://api.publicapis.org/entries", params={"title": text[len("\\title "):]})
+            return []
+        r = requests.get("https://api.publicapis.org/entries",
+                         params={type: text[len(f"{text.split()[0]} "):]})
+        print(len(r.json()["entries"]), r.json()["entries"])
+        arr = r.json()["entries"]
+
+    @staticmethod
+    def random():
+        r = requests.get("https://api.publicapis.org/random")
+        print(len(r.json()["entries"]), r.json()["entries"])
+        arr = r.json()["entries"]
+
+    @staticmethod
+    def categories():
+        r = requests.get("https://api.publicapis.org/categories")
         print(r.json())
+        arr = r.json()
 
-    def description(self):
-        pass
-
-    def random(self):
-        pass
-
-    def category(self):
-        pass
-
-    def categories(self):
-        pass
-
-    def help(self):
+    @staticmethod
+    def help():
         pass
 
     def idea(self):
@@ -36,12 +37,24 @@ class Bot:
 
     def answer(self, update):
         user_id = update["message"]["from"]["id"]
+        username = update["message"]["from"]["username"]
         chat_id = update["message"]["chat"]["id"]
         message_id = update["message"]["message_id"]
         text = update["message"]["text"]
         command = text.split()[0].replace('/', '')
         if command == "title":
-            self.title(text)
+            self.search(text, "title")
+        elif command == "search":
+            self.search(text, "description")
+        elif command == "random":
+            self.random()
+        elif command == "categories":
+            self.categories()
+        elif command == "help" or command == "start":
+            self.help()
+        elif command == "category":
+            self.search(text.split()[1], "category")
+
 
     def poll(self):
         offset = 0
@@ -49,6 +62,7 @@ class Bot:
             r = requests.get(f"https://api.telegram.org/bot{self.token}/getUpdates",
                              params={"timeout": 5, "offset": offset})
             updates = r.json()["result"]
+            print(updates)
             if len(updates):
                 for it in updates:
                     self.answer(it)
