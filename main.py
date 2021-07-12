@@ -69,7 +69,7 @@ class Bot:
         elif command == "help" or command == "start":
             arr = self.help()
         elif command == "category":
-            arr = self.search(text.split()[1], "category")
+            arr = self.search(text, "category")
         else:
             arr = ["Что-то пошло не так"]
         for it in arr:
