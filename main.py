@@ -1,11 +1,21 @@
 import requests
-import time
 import os
+import bs4
+import nltk
 
 
 class Bot:
     def __init__(self, token):
         self.token = token
+        nltk.download('punkt')
+        nltk.download('averaged_perceptron_tagger')
+
+    @staticmethod
+    def idea_gen():
+        r = requests.get("https://www.wolframcloud.com/objects/microsites/ProjectGenerator/idea")
+        soup = bs4.BeautifulSoup(r.text, 'html.parser')
+        return (soup.find(id="doimage")["src"][4:].replace("+", " ") + " "
+                + soup.find(id="thingimage")["src"][7:].replace("+", " "))
 
     @staticmethod
     def search(text, type):
@@ -13,8 +23,9 @@ class Bot:
             return []
         r = requests.get("https://api.publicapis.org/entries",
                          params={type: text[len(f"{text.split()[0]} "):]})
-        print(len(r.json()["entries"]), r.json()["entries"])
+        # print(len(r.json()["entries"]), r.json()["entries"])
         arr = []
+        print(r.json())
         for it in r.json()["entries"]:
             arr.append(f"{it['API']}\nОписание: {it['Description']}\nКатегория: {it['Category']}\nИнформация: {it['Link']}")
         return arr
@@ -44,10 +55,17 @@ class Bot:
 /random - случайное API
 /categories - список доступных категорий
 /category arg - получить список API из категории arg
-/idea - coming soon"""]
+/idea - получить идею для проекта и список api, которые могут помочь при реализации"""]
 
-    def idea(self):
-        pass
+    @staticmethod
+    def idea():
+        idea = Bot.idea_gen()
+        arr = [f"Idea for a project: {idea}", "Suggested APIs:"]
+        tokenized = nltk.word_tokenize(idea)
+        nouns = [word for (word, pos) in nltk.pos_tag(tokenized) if pos[:2] == "NN"]
+        for noun in nouns:
+            arr += Bot.search("idea" + noun, "description")
+        return arr
 
     def answer(self, update):
         user_id = update["message"]["from"]["id"]
@@ -70,8 +88,10 @@ class Bot:
             arr = self.help()
         elif command == "category":
             arr = self.search(text, "category")
+        elif command == "idea":
+            arr = self.idea()
         else:
-            arr = ["Что-то пошло не так"]
+            arr = ["Something went wrong"]
         for it in arr:
             r = requests.get(f"https://api.telegram.org/bot{self.token}/sendMessage",
                              params={"chat_id": chat_id, "text": it})
