@@ -19,27 +19,30 @@ class Bot:
 
     @staticmethod
     def search(text, type):
-        if len(text.split()) <= 1:
+        print(text)
+        if len(text.split()) == 0:
             return []
         r = requests.get("https://api.publicapis.org/entries",
-                         params={type: text[len(f"{text.split()[0]} "):]})
+                         params={type: text}, verify=False)
         # print(len(r.json()["entries"]), r.json()["entries"])
         arr = []
         print(r.json())
+        if r.json()["count"] == 0:
+            return []
         for it in r.json()["entries"]:
             arr.append(f"{it['API']}\nОписание: {it['Description']}\nКатегория: {it['Category']}\nИнформация: {it['Link']}")
         return arr
 
     @staticmethod
     def random():
-        r = requests.get("https://api.publicapis.org/random")
+        r = requests.get("https://api.publicapis.org/random", verify=False)
         print(len(r.json()["entries"]), r.json()["entries"])
         it = r.json()["entries"][0]
         return [f"{it['API']}\nОписание: {it['Description']}\nКатегория: {it['Category']}\nИнформация: {it['Link']}"]
 
     @staticmethod
     def categories():
-        r = requests.get("https://api.publicapis.org/categories")
+        r = requests.get("https://api.publicapis.org/categories", verify=False)
         print(r.json())
         text = ""
         for it in r.json():
@@ -49,13 +52,13 @@ class Bot:
     @staticmethod
     def help():
         return ["""Я бот для поиска API, доступны следующие команды:
-/search arg - поиск по описанию по словам arg
+/search arg - поиск по описанию по слову arg
 /title arg - поиск по названию по подстроке arg
 /substr arg - поиск по описанию по подстроке arg
 /random - случайное API
 /categories - список доступных категорий
 /category arg - получить список API из категории arg
-/idea - получить идею для проекта и список api, которые могут помочь при реализации"""]
+/idea - получить идею для проекта и список API, которые могут помочь при реализации"""]
 
     @staticmethod
     def idea():
@@ -64,7 +67,8 @@ class Bot:
         tokenized = nltk.word_tokenize(idea)
         nouns = [word for (word, pos) in nltk.pos_tag(tokenized) if pos[:2] == "NN"]
         for noun in nouns:
-            arr += Bot.search("idea" + noun, "description")
+            arr += Bot.search(" " + noun, "description")
+            arr += Bot.search(noun + " ", "description")
         return arr
 
     def answer(self, update):
@@ -74,10 +78,12 @@ class Bot:
         message_id = update["message"]["message_id"]
         text = update["message"]["text"]
         command = text.split()[0].replace('/', '')
+        text = text[len(text.split()[0]) + 1:]
         if command == "title":
             arr = self.search(text, "title")
         elif command == "search":
-            arr = self.search(" " + text + " ", "description")
+            arr = self.search(text + " ", "description")
+            arr += self.search(" " + text, "description")
         elif command == "substr":
             arr = self.search(text, "description")
         elif command == "random":
@@ -92,6 +98,8 @@ class Bot:
             arr = self.idea()
         else:
             arr = ["Something went wrong"]
+        if not arr:
+            arr = ["Nothing was found"]
         for it in arr:
             r = requests.get(f"https://api.telegram.org/bot{self.token}/sendMessage",
                              params={"chat_id": chat_id, "text": it})
