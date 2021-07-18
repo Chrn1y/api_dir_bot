@@ -60,7 +60,7 @@ class Bot:
 /categories - список доступных категорий
 /category arg - получить список API из категории arg
 /idea - получить идею для проекта и список API,""" +
-                "которые могут помочь при реализации"]
+                " которые могут помочь при реализации"]
 
     @staticmethod
     def idea() -> list:
@@ -70,7 +70,10 @@ class Bot:
         nouns = [word for (word, pos) in nltk.pos_tag(
             tokenized) if pos[:2] == "NN"]
         for noun in nouns:
-            arr += Bot.search(noun, "description")
+            if noun.lower() == "data":
+                continue
+            arr += Bot.search(" " + noun, "description")
+            arr += Bot.search(noun + " ", "description")
         return [f"Idea for a project: {idea}",
                 "Suggested APIs:"] + list(set(arr))
 
@@ -89,7 +92,7 @@ class Bot:
             arr += self.search(" " + text, "description")
             arr = list(filter(lambda x: x.find(" " + text + " ") >= 0,
                        list(set(arr))))
-            arr += list(set(arr + self.search(text, "title")))
+            arr = list(set(arr + self.search(text, "title")))
         elif command == "substr":
             arr = self.search(text, "description")
             arr += self.search(text, "title")
@@ -106,7 +109,7 @@ class Bot:
         else:
             arr = ["Something went wrong"]
         if not arr:
-            arr = ["Nothing was found"]
+            arr = ["Nothing is found"]
         for it in arr:
             requests.get(
                 f"https://api.telegram.org/bot{self.token}/sendMessage",
@@ -129,7 +132,7 @@ class Bot:
                 offset = updates[-1]["update_id"] + 1
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit("Invalid arguments")
     bot = Bot(sys.argv[1])
