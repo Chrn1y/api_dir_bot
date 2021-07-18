@@ -95,7 +95,7 @@ class Bot:
             arr = list(set(arr + self.search(text, "title")))
         elif command == "substr":
             arr = self.search(text, "description")
-            arr += self.search(text, "title")
+            arr = list(set(arr + self.search(text, "title")))
         elif command == "random":
             arr = self.random()
         elif command == "categories":
