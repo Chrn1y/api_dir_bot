@@ -1,7 +1,7 @@
 import requests
-import os
 import bs4
 import nltk
+import sys
 
 
 class Bot:
@@ -11,67 +11,70 @@ class Bot:
         nltk.download('averaged_perceptron_tagger')
 
     @staticmethod
-    def idea_gen():
-        r = requests.get("https://www.wolframcloud.com/objects/microsites/ProjectGenerator/idea")
+    def idea_gen() -> str:
+        r = requests.get(
+            "https://www.wolframcloud.com/objects/" +
+            "microsites/ProjectGenerator/idea")
         soup = bs4.BeautifulSoup(r.text, 'html.parser')
-        return (soup.find(id="doimage")["src"][4:].replace("+", " ") + " "
-                + soup.find(id="thingimage")["src"][7:].replace("+", " "))
+        return (soup.find(id="doimage")["src"][4:].replace("+", " ") + " " +
+                soup.find(id="thingimage")["src"][7:].replace("+", " "))
 
     @staticmethod
-    def search(text, type):
-        print(text)
+    def search(text: str, search_type: str) -> list:
         if len(text.split()) == 0:
             return []
         r = requests.get("https://api.publicapis.org/entries",
-                         params={type: text}, verify=False)
-        # print(len(r.json()["entries"]), r.json()["entries"])
+                         params={search_type: text}, verify=False)
         arr = []
-        print(r.json())
         if r.json()["count"] == 0:
             return []
         for it in r.json()["entries"]:
-            arr.append(f"{it['API']}\nОписание: {it['Description']}\nКатегория: {it['Category']}\nИнформация: {it['Link']}")
+            arr.append(
+                f"{it['API']} \nОписание: {it['Description'] }\n" +
+                f"Категория: {it['Category']}\nИнформация: {it['Link']}")
         return arr
 
     @staticmethod
     def random():
         r = requests.get("https://api.publicapis.org/random", verify=False)
-        print(len(r.json()["entries"]), r.json()["entries"])
         it = r.json()["entries"][0]
-        return [f"{it['API']}\nОписание: {it['Description']}\nКатегория: {it['Category']}\nИнформация: {it['Link']}"]
+        return [
+            f"{it['API']}\nОписание: {it['Description']}\nКатегория: " +
+            f"{it['Category']}\nИнформация: {it['Link']}"]
 
     @staticmethod
     def categories():
         r = requests.get("https://api.publicapis.org/categories", verify=False)
-        print(r.json())
         text = ""
         for it in r.json():
             text += it + "\n"
         return [text]
 
     @staticmethod
-    def help():
+    def help() -> list:
         return ["""Я бот для поиска API, доступны следующие команды:
-/search arg - поиск по описанию по слову arg
-/title arg - поиск по названию по подстроке arg
-/substr arg - поиск по описанию по подстроке arg
+/search arg - поиск по ключевому слову arg
+/substr arg - поиск по подстроке arg
+/title arg - поиск только по названию по подстроке arg
 /random - случайное API
 /categories - список доступных категорий
 /category arg - получить список API из категории arg
-/idea - получить идею для проекта и список API, которые могут помочь при реализации"""]
+/idea - получить идею для проекта и список API,""" +
+                "которые могут помочь при реализации"]
 
     @staticmethod
-    def idea():
+    def idea() -> list:
         idea = Bot.idea_gen()
-        arr = [f"Idea for a project: {idea}", "Suggested APIs:"]
+        arr = []
         tokenized = nltk.word_tokenize(idea)
-        nouns = [word for (word, pos) in nltk.pos_tag(tokenized) if pos[:2] == "NN"]
+        nouns = [word for (word, pos) in nltk.pos_tag(
+            tokenized) if pos[:2] == "NN"]
         for noun in nouns:
-            arr += Bot.search(" " + noun, "description")
-            arr += Bot.search(noun + " ", "description")
-        return arr
+            arr += Bot.search(noun, "description")
+        return [f"Idea for a project: {idea}",
+                "Suggested APIs:"] + list(set(arr))
 
-    def answer(self, update):
+    def answer(self, update: dict):
         user_id = update["message"]["from"]["id"]
         username = update["message"]["from"]["username"]
         chat_id = update["message"]["chat"]["id"]
@@ -84,8 +87,12 @@ class Bot:
         elif command == "search":
             arr = self.search(text + " ", "description")
             arr += self.search(" " + text, "description")
+            arr = list(filter(lambda x: x.find(" " + text + " ") >= 0,
+                       list(set(arr))))
+            arr += list(set(arr + self.search(text, "title")))
         elif command == "substr":
             arr = self.search(text, "description")
+            arr += self.search(text, "title")
         elif command == "random":
             arr = self.random()
         elif command == "categories":
@@ -101,21 +108,29 @@ class Bot:
         if not arr:
             arr = ["Nothing was found"]
         for it in arr:
-            r = requests.get(f"https://api.telegram.org/bot{self.token}/sendMessage",
-                             params={"chat_id": chat_id, "text": it})
+            requests.get(
+                f"https://api.telegram.org/bot{self.token}/sendMessage",
+                params={
+                    "chat_id": chat_id,
+                    "text": it})
 
     def poll(self):
         offset = 0
         while True:
-            r = requests.get(f"https://api.telegram.org/bot{self.token}/getUpdates",
-                             params={"timeout": 5, "offset": offset})
+            r = requests.get(
+                f"https://api.telegram.org/bot{self.token}/getUpdates",
+                params={
+                    "timeout": 5,
+                    "offset": offset})
             updates = r.json()["result"]
-            print(updates)
             if len(updates):
                 for it in updates:
                     self.answer(it)
                 offset = updates[-1]["update_id"] + 1
 
 
-bot = Bot(os.getenv("TOKEN"))
-bot.poll()
+if __name__ == "main":
+    if len(sys.argv) != 2:
+        sys.exit("Invalid arguments")
+    bot = Bot(sys.argv[1])
+    bot.poll()

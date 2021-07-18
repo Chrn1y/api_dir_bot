@@ -8,6 +8,5 @@ nltk==3.6.2
 regex==2021.7.6
 requests==2.25.1
 soupsieve==2.2.1
-textblob==0.15.3
 tqdm==4.61.2
 urllib3==1.26.6
