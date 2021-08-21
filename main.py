@@ -7,8 +7,8 @@ import sys
 class Bot:
     def __init__(self, token):
         self.token = token
-        nltk.download('punkt')
-        nltk.download('averaged_perceptron_tagger')
+        # nltk.download('punkt')
+        # nltk.download('averaged_perceptron_tagger')
 
     @staticmethod
     def idea_gen() -> str:
